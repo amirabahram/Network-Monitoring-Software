@@ -8,12 +8,14 @@ ApplicationWindow {
     width: 800
     height: 600
     title: "Map with Points"
-
+    property  Component locationmarker: locmarker
     Map {
-        id: map
+        id: mapview
         anchors.fill: parent
-        activeMapType: map.supportedMapTypes[1]
-        zoomLevel: 10
+        activeMapType: mapview.supportedMapTypes[1]
+        zoomLevel: 10  // Starting zoom level
+        minimumZoomLevel: 2  // Minimum allowed zoom level
+        maximumZoomLevel: 20  // Maximum allowed zoom level
         plugin: Plugin {
             name: 'osm'
             PluginParameter {
@@ -21,44 +23,59 @@ ApplicationWindow {
                 value: ':/offline_tiles/'
             }
         }
-        Repeater {
-            id: pointRepeater
-            model: server.getPositions ? server.getPositions.length : 0
 
-            // onCountChanged: {
-            //     console.log("Number of points painted: ", count);
-            // }
-
-            delegate: MapQuickItem {
-                coordinate: QtPositioning.coordinate(server.getPositions[index].y, server.getPositions[index].x)
-                onCoordinateChanged: {
-                    console.log("Painting point at latitude: " + server.getPositions[index].y +
-                                ", longitude: " + server.getPositions[index].x);
-                }
-                anchorPoint.x: icon.width / 2
-                anchorPoint.y: icon.height
+        Component
+        {
+            id:locmarker
+            MapQuickItem{
+                id:markerImg
+                anchorPoint.x: image.width/4
+                anchorPoint.y: image.height
+                coordinate: position
                 sourceItem: Image {
-                    id: icon
-                    source: "blue_symbol.png"
-                    width: 24
-                    height: 24
+                    id: image
+                    source: "qrc:/blue_symbol.png"
+
+                    // Dynamically adjust size based on zoom level
+                    width: 24 * (mapview.zoomLevel / 10)  // Adjust scaling factor as needed
+                    height: 24 * (mapview.zoomLevel / 10)
+
+                    onStatusChanged: {
+                        if (status == Image.Error) {
+                            console.log("Error loading image: " + source);
+                        } else if (status == Image.Ready) {
+                            console.log("Image loaded successfully: " + source);
+                        }
+                    }
                 }
             }
         }
     }
-
+    function setLocationMarker(lat,lon){
+        var item = locationmarker.createObject(appWindow,{
+                                                   coordinate:QtPositioning.coordinate(lat,lon)
+                                               })
+        mapview.addMapItem(item);
+        console.log("setLocationMarker at latitude: " + lat +
+                    ", longitude: " + lon);
+    }
     // Connections to the C++ server object for updating positions
     Connections {
         target: server
         function onSendLongitudeAndLatitude() {
-            console.log("onSend: Updating map points");
-            pointRepeater.model = server.getPositions ? server.getPositions.length : 0;
-
             if (server.getPositions && server.getPositions.length > 0) {
-                let firstPosition = server.getPositions[0];
-                let centerCoordinate = QtPositioning.coordinate(firstPosition.y, firstPosition.x);
-                map.center = centerCoordinate;
-            }
+                       // Center the map on the first position
+                       let firstPosition = server.getPositions[0];
+                       let centerCoordinate = QtPositioning.coordinate(firstPosition.y, firstPosition.x);
+                       mapview.center = centerCoordinate;
+
+                       // Loop through the received positions and set location markers
+                       for (var i = 0; i < server.getPositions.length; i++) {
+                           let position = server.getPositions[i];
+                           setLocationMarker(position.y, position.x); // Assuming y is latitude and x is longitude
+                       }
+                   }
+
         }
     }
 }
