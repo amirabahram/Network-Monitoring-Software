@@ -9,6 +9,8 @@ ApplicationWindow {
     height: 600
     title: "Map with Points"
     property  Component locationmarker: locmarker
+    property var currentMarkers: []  // List to store current markers
+
     Map {
         id: mapview
         anchors.fill: parent
@@ -40,13 +42,13 @@ ApplicationWindow {
                     width: 24 * (mapview.zoomLevel / 10)  // Adjust scaling factor as needed
                     height: 24 * (mapview.zoomLevel / 10)
 
-                    onStatusChanged: {
-                        if (status == Image.Error) {
-                            console.log("Error loading image: " + source);
-                        } else if (status == Image.Ready) {
-                            console.log("Image loaded successfully: " + source);
-                        }
-                    }
+                    // onStatusChanged: {
+                    //     if (status == Image.Error) {
+                    //         console.log("Error loading image: " + source);
+                    //     } else if (status == Image.Ready) {
+                    //         console.log("Image loaded successfully: " + source);
+                    //     }
+                    // }
                 }
             }
         }
@@ -56,14 +58,27 @@ ApplicationWindow {
                                                    coordinate:QtPositioning.coordinate(lat,lon)
                                                })
         mapview.addMapItem(item);
+        currentMarkers.push(item);
         console.log("setLocationMarker at latitude: " + lat +
                     ", longitude: " + lon);
+    }
+    function clearMarkers() {
+        // Loop over the current markers and remove them from the map
+        for (var i = 0; i < currentMarkers.length; i++) {
+            var marker = currentMarkers[i];
+            mapview.removeMapItem(marker);
+            marker.parent = null;
+            marker.destroy();  // Destroy the marker
+            console.log("Marker Destroyed");
+        }
+        currentMarkers = [];  // Clear the list of markers
     }
     // Connections to the C++ server object for updating positions
     Connections {
         target: server
         function onSendLongitudeAndLatitude() {
             if (server.getPositions && server.getPositions.length > 0) {
+clearMarkers();
                        // Center the map on the first position
                        let firstPosition = server.getPositions[0];
                        let centerCoordinate = QtPositioning.coordinate(firstPosition.y, firstPosition.x);

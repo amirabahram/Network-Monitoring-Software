@@ -52,7 +52,7 @@ void Server::readData(QTcpSocket* socket) {
     if (socket->bytesAvailable() >= static_cast<int>(sizeof(quint32))) {
         quint32 numPositions;
         stream >> numPositions;
-
+        positions.clear();
         // Read all positions as long as sufficient data is available for each pair of double values
         while (socket->bytesAvailable() >= static_cast<int>(sizeof(double) * 2)) {
             double longitude, latitude;
